@@ -29,6 +29,10 @@ spec:
         - name: {{ .Chart.Name }}
           command: [ "kubewall", "--no-open-browser" ]
           args:
+          {{- if .Values.tls.enabled }}
+           - --certFile=/etc/ssl/certs/tls.crt
+           - --keyFile=/etc/ssl/certs/tls.key
+          {{- end }}
             {{- if .Values.litellm.endpoint }}
            - --llm-api-endpoint={{ .Values.litellm.endpoint }}
             {{- end }}
@@ -55,13 +59,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /healthz
-              port: https
+              port: http
               scheme: HTTP
           readinessProbe:
             httpGet:
               path: /healthz
-              port: https
-              scheme: HTTP
+              port: http
+              scheme: HTTPs
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:

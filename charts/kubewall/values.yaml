@@ -1,5 +1,6 @@
 # TLS Configuration
 tls:
+  enabled: false
   # Name of the Kubernetes secret that contains the TLS certificate and key
   secretName: ""
   # The hostname for TLS (ensure DNS resolution for this hostname)
