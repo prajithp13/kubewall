@@ -6,7 +6,7 @@ tls:
   host: kubewall.local
 
 # Replica settings for the deployment
-replicaCount: 1  # Number of replicas of the application pod
+replicaCount: 2  # Number of replicas of the application pod
 
 # Kubernetes API client configuration for throttling
 k8s_client_burst: ""  # Max burst for throttle of Kubernetes client (e.g., "200")
@@ -15,22 +15,17 @@ k8s_client_qps: ""    # Queries per second limit for Kubernetes client (e.g., "1
 # Container image settings
 image:
   # Image repository location
-  repository: ghcr.io/kubewall/kubewall
+  repository: ghcr.io/prajithp13/kubewall
   # Pull policy for the image ("Always", "IfNotPresent", "Never")
   pullPolicy: IfNotPresent
   # Image tag to be used (can be set to a specific version or "latest")
-  tag: ""
+  tag: "dev-979f4891"
 
 # Service account settings
 serviceAccount:
   create: true  # Whether to create a new service account
   annotations: {}  # Annotations for the service account (e.g., IAM roles)
   name: ""  # Name of the service account, leave empty for auto-generation
-
-# Data volume for Kubewall-specific configurations
-kubewallData:
-  # Path where Kubewall data will be mounted inside the container
-  mountPath: "/.kubewall"
 
 # Image pull secrets, required if pulling images from private repositories
 imagePullSecrets: []
@@ -67,18 +62,11 @@ service:
 # Resource limits and requests for the container
 resources:
   limits:
-    cpu: 100m  # Maximum CPU limit (100 milli-CPU)
-    memory: 256Mi  # Maximum memory limit (128 MiB)
+    cpu: 2000m  # Maximum CPU limit (100 milli-CPU)
+    memory: 2056Mi  # Maximum memory limit (128 MiB)
   requests:
-    cpu: 100m  # Minimum CPU request (100 milli-CPU)
-    memory: 256Mi  # Minimum memory request (128 MiB)
-
-# Persistent volume claim (PVC) for Kubewall data storage
-pvc:
-  name: kubewall-data  # Name of the PVC
-  storage: 20Mi  # Storage size requested for the PVC
-  accessModes: ReadWriteOnce  # Access mode for the PVC
-  storageClass: ""  # Storage class for the PVC (leave empty for default)
+    cpu: 1000m  # Minimum CPU request (100 milli-CPU)
+    memory: 2056Mi  # Minimum memory request (128 MiB)
 
 # Node scheduling preferences
 nodeSelector: {}  # Node labels for pod assignment
@@ -88,3 +76,4 @@ tolerations: []
 
 # Affinity rules for pod scheduling
 affinity: {}
+
