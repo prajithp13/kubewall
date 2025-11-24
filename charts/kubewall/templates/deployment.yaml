@@ -29,8 +29,12 @@ spec:
         - name: {{ .Chart.Name }}
           command: [ "kubewall", "--no-open-browser" ]
           args:
-           - --certFile=/etc/ssl/certs/tls.crt
-           - --keyFile=/etc/ssl/certs/tls.key
+            {{- if .Values.litellm.endpoint }}
+           - --llm-api-endpoint={{ .Values.litellm.endpoint }}
+            {{- end }}
+            {{- if .Values.litellm.key }}
+           - --llm-api-key={{ .Values.litellm.key }}
+            {{- end }}
             {{- if .Values.service.listen }}
            - --listen={{ .Values.service.listen }}
             {{- end }}
@@ -52,12 +56,12 @@ spec:
             httpGet:
               path: /healthz
               port: https
-              scheme: HTTPS
+              scheme: HTTP
           readinessProbe:
             httpGet:
               path: /healthz
               port: https
-              scheme: HTTPS
+              scheme: HTTP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
