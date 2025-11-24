@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"strings"
-
 	"github.com/kubewall/kubewall/backend/container"
 
 	"github.com/labstack/echo/v4"
@@ -21,14 +19,6 @@ func ClusterQueryParamMiddleware(container container.Container) echo.MiddlewareF
 
 			if _, ok := container.Config().KubeConfig[c.QueryParam("config")]; !ok {
 				return c.JSON(400, "selected config is not present")
-			}
-
-			for _, v := range container.Config().KubeConfig {
-				if strings.EqualFold(v.Name, c.QueryParam("cluster")) {
-					if !v.FileExists {
-						return c.JSON(400, "selected cluster is not present in config")
-					}
-				}
 			}
 
 			for _, v := range container.Config().KubeConfig[c.QueryParam("config")].Clusters {

@@ -72,7 +72,7 @@ func (clusterConfig *SecretClusterConfig) toRestConfig(server string) *rest.Conf
 		Host:        server,
 		BearerToken: clusterConfig.BearerToken,
 		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
+			Insecure: false,
 		},
 	}
 	clusterConfig.addTLSConfigurationsInto(restConfig)
@@ -229,13 +229,12 @@ func GetAllClusters() (map[string]*Cluster, error) {
 						}
 
 						restConfig := clusterConfig.toRestConfig(string(server))
-						clusterConfig.addTLSConfigurationsInto(restConfig)
-
 						kubeConfig, err := loadClientConfig(restConfig)
 						if err != nil {
 							log.Warn("failed to load clientConfig for cluster", "name", string(name), "err", err)
 							continue
 						}
+
 						cfg := &Cluster{
 							Name:                     string(name),
 							Namespace:                "default",
