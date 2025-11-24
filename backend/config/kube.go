@@ -54,14 +54,17 @@ type Cluster struct {
 	mu                       sync.Mutex                                   `json:"-"`
 }
 
+type TLSClientConfig struct {
+	Insecure   bool   `json:"insecure"`
+	ServerName string `json:"serverName,omitempty"`
+	CertData   []byte `json:"certData,omitempty"`
+	KeyData    []byte `json:"keyData,omitempty"`
+	CAData     []byte `json:"caData,omitempty"`
+}
+
 type SecretClusterConfig struct {
-	BearerToken     string `json:"bearerToken"`
-	TlsClientConfig struct {
-		Insecure bool   `json:"insecure"`
-		KeyData  string `json:"keyData,omitempty"`
-		CertData string `json:"certData,omitempty"`
-		CaData   string `json:"caData,omitempty"`
-	} `json:"tlsClientConfig"`
+	BearerToken     string           `json:"bearerToken"`
+	TlsClientConfig *TLSClientConfig `json:"tlsClientConfig"`
 }
 
 func (clusterConfig *SecretClusterConfig) toRestConfig(server string) *rest.Config {
@@ -80,9 +83,9 @@ func (clusterConfig *SecretClusterConfig) addTLSConfigurationsInto(restConfig *r
 	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: clusterConfig.TlsClientConfig.Insecure}
 	if !clusterConfig.TlsClientConfig.Insecure {
 		restConfig.TLSClientConfig.ServerName = restConfig.ServerName
-		restConfig.TLSClientConfig.KeyData = []byte(clusterConfig.TlsClientConfig.KeyData)
-		restConfig.TLSClientConfig.CertData = []byte(clusterConfig.TlsClientConfig.CertData)
-		restConfig.TLSClientConfig.CAData = []byte(clusterConfig.TlsClientConfig.CaData)
+		restConfig.TLSClientConfig.KeyData = clusterConfig.TlsClientConfig.KeyData
+		restConfig.TLSClientConfig.CertData = clusterConfig.TlsClientConfig.CertData
+		restConfig.TLSClientConfig.CAData = clusterConfig.TlsClientConfig.CAData
 	}
 }
 
@@ -220,16 +223,17 @@ func GetAllClusters() (map[string]*Cluster, error) {
 				if name, ok := secret.Data["name"]; ok {
 					if config, ok := secret.Data["config"]; ok {
 						var clusterConfig SecretClusterConfig
-						err = json.Unmarshal(config, &clusterConfig)
-						if err != nil {
+						if err = json.Unmarshal(config, &clusterConfig); err != nil {
+							log.Warn("failed to unmarshal cluster config for ", "name", string(name), "err", err)
 							continue
 						}
+
 						restConfig := clusterConfig.toRestConfig(string(server))
 						clusterConfig.addTLSConfigurationsInto(restConfig)
 
 						kubeConfig, err := loadClientConfig(restConfig)
 						if err != nil {
-							log.Warn("failed to load clientConfig for cluster", "err", err)
+							log.Warn("failed to load clientConfig for cluster", "name", string(name), "err", err)
 							continue
 						}
 						cfg := &Cluster{
