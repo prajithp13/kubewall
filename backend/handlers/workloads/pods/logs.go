@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/r3labs/sse/v2"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type LogMessage struct {
@@ -68,18 +69,11 @@ func (h *PodsHandler) publishLogsToSSE(c echo.Context, streamKey string, sseServ
 	var containerNames []string
 
 	if isAllContainers {
-		podObj, _, err := h.BaseHandler.Informer.GetStore().GetByKey(fmt.Sprintf("%s/%s", c.QueryParam("namespace"), c.Param("name")))
+		// Fetch pod using direct API call instead of informer
+		pod, err := h.clientSet.CoreV1().Pods(namespace).Get(c.Request().Context(), name, metav1.GetOptions{})
 		if err != nil {
-			return err, true
-		}
-		if podObj == nil {
-			c.Logger().Error("failed to get obj publishLogsToSSE", "err", err)
-			return fmt.Errorf("failed to get obj publishLogsToSSE %s", err), true
-		}
-		pod, ok := podObj.(*v1.Pod)
-		if !ok {
-			c.Logger().Error("failed to type assertions pod", "err", err)
-			return fmt.Errorf("failed to type assertions pod %s", err), true
+			c.Logger().Error("failed to get pod for logs", "err", err)
+			return fmt.Errorf("failed to get pod for logs: %w", err), true
 		}
 		// Include init containers
 		for _, initContainer := range pod.Spec.InitContainers {

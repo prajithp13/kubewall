@@ -11,23 +11,20 @@ import (
 )
 
 func (h *PodsHandler) NodePods(c echo.Context) {
-	items := h.BaseHandler.Informer.GetStore().List()
-	if len(items) == 0 {
+	// Fetch pods using direct API call instead of informer
+	pods, err := h.fetchPodsWithCache(c.Request().Context(), "")
+	if err != nil || len(pods) == 0 {
 		return
 	}
 
 	// group pods by node
 	podsByNode := make(map[string][]v1.Pod, 8)
-	for _, obj := range items {
-		pod, ok := obj.(*v1.Pod)
-		if !ok {
-			continue
-		}
+	for _, pod := range pods {
 		node := pod.Spec.NodeName
 		if node == "" {
 			node = "unscheduled"
 		}
-		podsByNode[node] = append(podsByNode[node], *pod)
+		podsByNode[node] = append(podsByNode[node], pod)
 	}
 
 	if len(podsByNode) == 0 {

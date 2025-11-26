@@ -1,10 +1,10 @@
 package base
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/kubewall/kubewall/backend/handlers/helpers"
 	"github.com/labstack/echo/v4"
 	"sigs.k8s.io/yaml"
@@ -25,7 +25,7 @@ func (h *BaseHandler) marshalDetailData(item any, exists bool) []byte {
 	if !exists {
 		return []byte("{}")
 	}
-	data, err := json.Marshal(item)
+	data, err := sonic.Marshal(item)
 	if err != nil {
 		return []byte("{}")
 	}
@@ -40,7 +40,7 @@ func (h *BaseHandler) marshalYAML(item any, exists bool) []byte {
 	if err != nil {
 		return []byte("{}")
 	}
-	b, err := json.Marshal(echo.Map{
+	b, err := sonic.Marshal(echo.Map{
 		"data": y,
 	})
 	if err != nil {
@@ -61,7 +61,7 @@ func (h *BaseHandler) marshalListData(items []any, resourceName string) []byte {
 
 	var entries []map[string]any
 	// Returning data will send CRD data
-	if err := json.Unmarshal(data, &entries); err != nil || entries == nil {
+	if err := sonic.Unmarshal(data, &entries); err != nil || entries == nil {
 		return data
 	}
 
@@ -69,7 +69,7 @@ func (h *BaseHandler) marshalListData(items []any, resourceName string) []byte {
 		entries[i]["hasUpdated"] = h.isResourceUpdated(entries[i], resourceName)
 	}
 
-	finalData, err := json.Marshal(entries)
+	finalData, err := sonic.Marshal(entries)
 
 	if err != nil {
 		return []byte("[]")

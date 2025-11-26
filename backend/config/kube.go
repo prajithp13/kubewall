@@ -51,6 +51,9 @@ type Cluster struct {
 	ExtensionInformerFactory apiextensionsinformers.SharedInformerFactory `json:"-"`
 	DynamicInformerFactory   dynamicinformer.DynamicSharedInformerFactory `json:"-"`
 	MetricClient             *metricsclient.Clientset                     `json:"-"`
+	ctx                      context.Context                              `json:"-"`
+	cancel                   context.CancelFunc                           `json:"-"`
+	informerStarted          bool                                         `json:"-"`
 	mu                       sync.Mutex                                   `json:"-"`
 }
 
@@ -151,6 +154,47 @@ func (c *Cluster) MarkAsConnected() *Cluster {
 
 	c.Connected = true
 	return c
+}
+
+// GetContext returns or creates a cancellable context for this cluster
+func (c *Cluster) GetContext() context.Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.ctx == nil {
+		c.ctx, c.cancel = context.WithCancel(context.Background())
+	}
+	return c.ctx
+}
+
+// IsInformerStarted returns true if informers have been started for this cluster
+func (c *Cluster) IsInformerStarted() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.informerStarted
+}
+
+// MarkInformerStarted marks that informers have been started for this cluster
+func (c *Cluster) MarkInformerStarted() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.informerStarted = true
+}
+
+// Shutdown stops all informers and cancels the context for this cluster
+func (c *Cluster) Shutdown() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cancel != nil {
+		log.Info("Shutting down informers for cluster", "cluster", c.Name)
+		c.cancel()
+		c.cancel = nil
+		c.ctx = nil
+		c.informerStarted = false
+	}
 }
 
 func LoadInClusterConfig() (KubeConfigInfo, error) {

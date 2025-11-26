@@ -2,14 +2,15 @@ package base
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
+
+	"github.com/bytedance/sonic"
 	"github.com/labstack/echo/v4"
 	"github.com/r3labs/sse/v2"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sync"
-	"time"
 )
 
 func (h *BaseHandler) buildEventStreamID(c echo.Context) string {
@@ -41,7 +42,7 @@ func (h *BaseHandler) marshalEvents(events []coreV1.Event) []byte {
 	if len(events) == 0 || events == nil {
 		return []byte("[]")
 	}
-	data, err := json.Marshal(events)
+	data, err := sonic.Marshal(events)
 	if err != nil {
 		return []byte("[]")
 	}

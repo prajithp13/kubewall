@@ -3,6 +3,8 @@ package routes
 import (
 	"embed"
 	"net/http"
+	"net/http/pprof"
+	"runtime"
 
 	"github.com/kubewall/kubewall/backend/handlers/accesscontrol/clusterroles"
 	clusterrolebindings "github.com/kubewall/kubewall/backend/handlers/accesscontrol/clusterrolesbindings"
@@ -74,6 +76,9 @@ func ConfigureRoutes(e *echo.Echo, appContainer container.Container) {
 	e.GET("/healthz", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
+
+	// Add pprof debug endpoints
+	setupPprofRoutes(e, appContainer)
 
 	e.POST("api/v1/app/apply", apply.NewApplyHandler(appContainer, apply.POSTApply))
 
@@ -368,4 +373,51 @@ func setCORSConfig(e *echo.Echo) {
 			http.MethodTrace},
 		MaxAge: 86400,
 	}))
+}
+
+// setupPprofRoutes adds pprof profiling endpoints for memory and performance analysis
+func setupPprofRoutes(e *echo.Echo, _ container.Container) {
+	// Standard pprof endpoints
+	e.GET("/debug/pprof/", echo.WrapHandler(http.HandlerFunc(pprof.Index)))
+	e.GET("/debug/pprof/cmdline", echo.WrapHandler(http.HandlerFunc(pprof.Cmdline)))
+	e.GET("/debug/pprof/profile", echo.WrapHandler(http.HandlerFunc(pprof.Profile)))
+	e.GET("/debug/pprof/symbol", echo.WrapHandler(http.HandlerFunc(pprof.Symbol)))
+	e.GET("/debug/pprof/trace", echo.WrapHandler(http.HandlerFunc(pprof.Trace)))
+	e.GET("/debug/pprof/heap", echo.WrapHandler(pprof.Handler("heap")))
+	e.GET("/debug/pprof/goroutine", echo.WrapHandler(pprof.Handler("goroutine")))
+	e.GET("/debug/pprof/block", echo.WrapHandler(pprof.Handler("block")))
+	e.GET("/debug/pprof/threadcreate", echo.WrapHandler(pprof.Handler("threadcreate")))
+	e.GET("/debug/pprof/mutex", echo.WrapHandler(pprof.Handler("mutex")))
+	e.GET("/debug/pprof/allocs", echo.WrapHandler(pprof.Handler("allocs")))
+
+	// Custom memory stats endpoint
+	e.GET("/debug/memory", func(c echo.Context) error {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"alloc_mb":         m.Alloc / 1024 / 1024,
+			"total_alloc_mb":   m.TotalAlloc / 1024 / 1024,
+			"sys_mb":           m.Sys / 1024 / 1024,
+			"heap_alloc_mb":    m.HeapAlloc / 1024 / 1024,
+			"heap_sys_mb":      m.HeapSys / 1024 / 1024,
+			"heap_idle_mb":     m.HeapIdle / 1024 / 1024,
+			"heap_inuse_mb":    m.HeapInuse / 1024 / 1024,
+			"heap_released_mb": m.HeapReleased / 1024 / 1024,
+			"heap_objects":     m.HeapObjects,
+			"stack_inuse_mb":   m.StackInuse / 1024 / 1024,
+			"stack_sys_mb":     m.StackSys / 1024 / 1024,
+			"num_gc":           m.NumGC,
+			"num_goroutines":   runtime.NumGoroutine(),
+			"go_version":       runtime.Version(),
+		})
+	})
+
+	// Force garbage collection endpoint (use sparingly!)
+	e.POST("/debug/gc", func(c echo.Context) error {
+		runtime.GC()
+		return c.JSON(http.StatusOK, map[string]string{
+			"message": "Garbage collection triggered",
+		})
+	})
 }

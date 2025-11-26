@@ -14,19 +14,9 @@ import (
 )
 
 func (h *PodsHandler) DeploymentsPods(c echo.Context) {
-	items := h.BaseHandler.Informer.GetStore().List()
-	if len(items) == 0 {
-		return
-	}
-
-	// collect all pods
-	var pods []v1.Pod
-	for _, obj := range items {
-		if p, ok := obj.(*v1.Pod); ok {
-			pods = append(pods, *p)
-		}
-	}
-	if len(pods) == 0 {
+	// Fetch pods using direct API call instead of informer
+	pods, err := h.fetchPodsWithCache(c.Request().Context(), "")
+	if err != nil || len(pods) == 0 {
 		return
 	}
 

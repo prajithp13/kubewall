@@ -1,10 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/kubewall/kubewall/backend/config"
@@ -121,18 +126,52 @@ func Serve(cmd *cobra.Command) error {
 		log.Warn("SSE may not work properly without TLS. Use --certFile and --keyFile for HTTPS, or bind to localhost with --listen localhost:7080 to avoid issues.")
 	}
 
-	if c.Config().IsSecure {
-		e.Pre(middleware.HTTPSRedirect())
-		if err = e.StartTLS(c.Config().ListenAddr, certFile, keyFile); err != nil {
-			return err
+	// Start server in a goroutine
+	go func() {
+		if c.Config().IsSecure {
+			e.Pre(middleware.HTTPSRedirect())
+			if err := e.StartTLS(c.Config().ListenAddr, certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				log.Fatal("shutting down the server", "error", err)
+			}
+		} else {
+			if err := e.Start(c.Config().ListenAddr); err != nil && err != http.ErrServerClosed {
+				log.Fatal("shutting down the server", "error", err)
+			}
 		}
-		return nil
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Info("Shutting down gracefully...")
+
+	// Shutdown all cluster informers
+	shutdownAllClusters(c)
+
+	// Stop event processor
+	c.EventProcessor().Stop()
+
+	// Shutdown server with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		log.Error("Server forced to shutdown", "error", err)
 	}
 
-	if err = e.Start(c.Config().ListenAddr); err != nil {
-		return err
-	}
+	log.Info("Server exited")
 	return nil
+}
+
+func shutdownAllClusters(c container.Container) {
+	cfg := c.Config()
+	for configName, kubeConfig := range cfg.KubeConfig {
+		for clusterName, cluster := range kubeConfig.Clusters {
+			log.Info("Shutting down cluster", "config", configName, "cluster", clusterName)
+			cluster.Shutdown()
+		}
+	}
 }
 
 func openDefaultBrowser(isSecure bool, listenAddr string) {
